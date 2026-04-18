@@ -1,24 +1,71 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { queryClient } from "@/src/lib/query-client";
+import { subscribeToAuthState } from "@/src/services/firebase/auth";
+import { useAuthStore } from "@/src/store/auth";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Stack, router, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import "react-native-reanimated";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
+import "@/global.css";
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: "(auth)",
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const segments = useSegments();
+  const status = useAuthStore((state) => state.status);
+  const role = useAuthStore((state) => state.role);
+  const setLoading = useAuthStore((state) => state.setLoading);
+  const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  useEffect(() => {
+    setLoading();
+
+    const unsubscribe = subscribeToAuthState(({ user }) => {
+      if (user) {
+        setAuthenticated(user);
+      } else {
+        clearAuth();
+      }
+    });
+
+    return unsubscribe;
+  }, [clearAuth, setAuthenticated, setLoading]);
+
+  useEffect(() => {
+    const inAuthGroup = segments[0] === "(auth)";
+    const inAppGroup = segments[0] === "(app)";
+
+    if (status === "loading") {
+      return;
+    }
+
+    if (status === "unauthenticated" && !inAuthGroup) {
+      router.replace("/(auth)/login");
+      return;
+    }
+
+    if (status === "authenticated" && !inAppGroup) {
+      const targetRole =
+        role === "physiotherapist" || role === "admin" ? "physio" : "patient";
+      router.replace(`/(app)/(${targetRole})`);
+    }
+  }, [role, segments, status]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <GluestackUIProvider>
+      <QueryClientProvider client={queryClient}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(app)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+        <StatusBar style="auto" />
+      </QueryClientProvider>
+    </GluestackUIProvider>
   );
 }
