@@ -13,7 +13,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { VStack } from "@/components/ui/vstack";
-import { useCreateCondition } from "@/src/features/conditions/api";
+import {
+  useCreateCondition,
+  useCreateMetrics,
+} from "@/src/features/conditions/api";
 import { PhotoGallery } from "@/src/features/conditions/photo-gallery";
 import { PhotoPicker } from "@/src/features/conditions/photo-picker";
 import { useAuthStore } from "@/src/store/auth";
@@ -37,8 +40,16 @@ const conditionFormSchema = z.object({
 
 type ConditionFormInput = z.infer<typeof conditionFormSchema>;
 
+type MetricDraft = {
+  name: string;
+  unit: string;
+  initialValue: string;
+  targetValue: string;
+};
+
 export default function CreateConditionScreen() {
-  const { patientId } = useLocalSearchParams<{ patientId: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const patientId = id;
   const { user } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -49,8 +60,11 @@ export default function CreateConditionScreen() {
   const [uploadedPhotosCount, setUploadedPhotosCount] = useState(0);
   const [photoViewType, setPhotoViewType] = useState("general");
   const [photoNotes, setPhotoNotes] = useState("");
+  const [metricDrafts, setMetricDrafts] = useState<MetricDraft[]>([]);
+  const [savingMetrics, setSavingMetrics] = useState(false);
 
   const createConditionMutation = useCreateCondition();
+  const createMetricsMutation = useCreateMetrics();
 
   const {
     control,
@@ -144,18 +158,76 @@ export default function CreateConditionScreen() {
     setError(null);
   };
 
+  const addMetricDraft = () => {
+    setMetricDrafts((prev) => [
+      ...prev,
+      { name: "", unit: "", initialValue: "", targetValue: "" },
+    ]);
+  };
+
+  const updateMetricDraft = (
+    index: number,
+    field: keyof MetricDraft,
+    value: string,
+  ) => {
+    setMetricDrafts((prev) =>
+      prev.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    );
+  };
+
+  const removeMetricDraft = (index: number) => {
+    setMetricDrafts((prev) =>
+      prev.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
+  const saveMetrics = async () => {
+    try {
+      if (!createdCondition || metricDrafts.length === 0) {
+        return;
+      }
+
+      setSavingMetrics(true);
+      setError(null);
+
+      const validMetrics = metricDrafts
+        .filter((draft) => draft.name.trim().length > 0)
+        .map((draft) => ({
+          conditionId: createdCondition.id,
+          name: draft.name.trim(),
+          unit: draft.unit.trim(),
+          initialValue: draft.initialValue ? Number(draft.initialValue) : null,
+          targetValue: draft.targetValue ? Number(draft.targetValue) : null,
+        }));
+
+      if (validMetrics.length > 0) {
+        await createMetricsMutation.mutateAsync(validMetrics);
+      }
+
+      setMetricDrafts([]);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error al guardar las métricas",
+      );
+    } finally {
+      setSavingMetrics(false);
+    }
+  };
+
   const handleFinish = () => {
     if (uploadedPhotosCount > 0) {
-      Alert.alert(
-        "¡Éxito!",
-        `Diagnóstico creado con ${uploadedPhotosCount} foto(s)`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ],
-      );
+      const metricsCount = metricDrafts.filter(
+        (m) => m.name.trim().length > 0,
+      ).length;
+      const message = `Diagnóstico creado con ${uploadedPhotosCount} foto(s)${metricsCount > 0 ? ` y ${metricsCount} métrica(s)` : ""}`;
+      Alert.alert("¡Éxito!", message, [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
     } else {
       router.back();
     }
@@ -176,17 +248,166 @@ export default function CreateConditionScreen() {
             {/* Success Header */}
             <Box className="rounded-lg border border-green-600 bg-green-50 p-4">
               <Text className="text-lg font-bold text-green-900">
-                ✅ Diagnóstico creado
+                Diagnóstico creado
               </Text>
               <Text className="mt-2 text-sm text-green-800">
                 {createdCondition.name}
               </Text>
             </Box>
 
+            {/* Metrics Section */}
+            <VStack space="md">
+              <VStack space="xs">
+                <Text className="text-lg font-semibold text-foreground">
+                  Métricas (opcional)
+                </Text>
+                <Text className="text-sm text-muted-foreground">
+                  Define métricas para rastrear el progreso durante el
+                  tratamiento. Ejemplo: Dolor (puntos), Rango de movimiento
+                  (grados).
+                </Text>
+              </VStack>
+
+              {error && (
+                <Box className="rounded-lg border border-destructive bg-destructive/5 p-3">
+                  <Text className="text-sm text-destructive">{error}</Text>
+                </Box>
+              )}
+
+              {metricDrafts.length > 0 && (
+                <VStack space="sm">
+                  {metricDrafts.map((metric, index) => (
+                    <Box
+                      key={index}
+                      className="rounded-lg border border-border bg-card p-3"
+                    >
+                      <VStack space="sm">
+                        <HStack
+                          className="items-center justify-between"
+                          space="md"
+                        >
+                          <Text className="flex-1 text-sm font-semibold text-foreground">
+                            Métrica {index + 1}
+                          </Text>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onPress={() => removeMetricDraft(index)}
+                          >
+                            <ButtonText>Eliminar</ButtonText>
+                          </Button>
+                        </HStack>
+
+                        <FormControl>
+                          <FormControlLabel>
+                            <FormControlLabelText className="text-xs text-muted-foreground">
+                              Nombre *
+                            </FormControlLabelText>
+                          </FormControlLabel>
+                          <Input className="border-border bg-background">
+                            <InputField
+                              value={metric.name}
+                              onChangeText={(value) =>
+                                updateMetricDraft(index, "name", value)
+                              }
+                              placeholder="Ej: Dolor, Rango de movimiento"
+                            />
+                          </Input>
+                        </FormControl>
+
+                        <HStack space="sm" className="items-end">
+                          <FormControl className="flex-1">
+                            <FormControlLabel>
+                              <FormControlLabelText className="text-xs text-muted-foreground">
+                                Unidad
+                              </FormControlLabelText>
+                            </FormControlLabel>
+                            <Input className="border-border bg-background">
+                              <InputField
+                                value={metric.unit}
+                                onChangeText={(value) =>
+                                  updateMetricDraft(index, "unit", value)
+                                }
+                                placeholder="Ej: puntos, grados, kg"
+                              />
+                            </Input>
+                          </FormControl>
+
+                          <FormControl className="flex-1">
+                            <FormControlLabel>
+                              <FormControlLabelText className="text-xs text-muted-foreground">
+                                Valor inicial
+                              </FormControlLabelText>
+                            </FormControlLabel>
+                            <Input className="border-border bg-background">
+                              <InputField
+                                value={metric.initialValue}
+                                onChangeText={(value) =>
+                                  updateMetricDraft(
+                                    index,
+                                    "initialValue",
+                                    value,
+                                  )
+                                }
+                                placeholder="Ej: 8"
+                                keyboardType="decimal-pad"
+                              />
+                            </Input>
+                          </FormControl>
+
+                          <FormControl className="flex-1">
+                            <FormControlLabel>
+                              <FormControlLabelText className="text-xs text-muted-foreground">
+                                Target
+                              </FormControlLabelText>
+                            </FormControlLabel>
+                            <Input className="border-border bg-background">
+                              <InputField
+                                value={metric.targetValue}
+                                onChangeText={(value) =>
+                                  updateMetricDraft(index, "targetValue", value)
+                                }
+                                placeholder="Ej: 2"
+                                keyboardType="decimal-pad"
+                              />
+                            </Input>
+                          </FormControl>
+                        </HStack>
+                      </VStack>
+                    </Box>
+                  ))}
+                </VStack>
+              )}
+
+              <Button
+                variant="outline"
+                onPress={addMetricDraft}
+                disabled={savingMetrics}
+              >
+                <ButtonText>+ Agregar métrica</ButtonText>
+              </Button>
+
+              {metricDrafts.length > 0 && (
+                <Button
+                  onPress={saveMetrics}
+                  disabled={
+                    savingMetrics ||
+                    metricDrafts.every((m) => m.name.trim().length === 0)
+                  }
+                >
+                  {savingMetrics ? (
+                    <Spinner size="small" />
+                  ) : (
+                    <ButtonText>Guardar métricas</ButtonText>
+                  )}
+                </Button>
+              )}
+            </VStack>
+
             {/* Photo Upload Section */}
             <VStack space="md">
               <Text className="text-lg font-semibold text-foreground">
-                📸 Agregar fotos de diagnóstico
+                Agregar fotos de diagnóstico
               </Text>
               <Text className="text-sm text-muted-foreground">
                 Sube o toma fotos solo si lo necesitas. Puedes agregar 0, 1 o
@@ -277,12 +498,6 @@ export default function CreateConditionScreen() {
                 />
               </Box>
             </VStack>
-
-            {error && (
-              <Box className="rounded-lg border border-destructive bg-destructive/5 p-3">
-                <Text className="text-sm text-destructive">{error}</Text>
-              </Box>
-            )}
 
             {/* Action Buttons */}
             <HStack space="md" style={{ marginTop: 24 }}>

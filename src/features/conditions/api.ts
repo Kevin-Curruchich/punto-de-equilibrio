@@ -2,11 +2,21 @@ import {
   createCondition,
   deleteConditionIfEmpty,
   getConditionById,
+  getConditionMeasurements,
   getPatientConditions,
   updateCondition,
   type CreateConditionInput,
   type UpdateConditionInput,
 } from "@/src/services/firebase/conditions";
+import {
+  createMetric,
+  createMetrics,
+  deleteMetric,
+  getConditionMetrics,
+  updateMetric,
+  type CreateMetricInput,
+  type UpdateMetricInput,
+} from "@/src/services/firebase/metrics";
 import type { UUID } from "@/src/types/domain";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -86,6 +96,104 @@ export function useDeleteCondition(patientId: UUID | null) {
       if (patientId) {
         queryClient.invalidateQueries({
           queryKey: ["patient-conditions", patientId],
+        });
+      }
+    },
+  });
+}
+
+/**
+ * Hook para obtener todos los registros de medición de una condición
+ */
+export function useConditionMeasurements(conditionId: UUID | null) {
+  return useQuery({
+    queryKey: ["condition-measurements", conditionId],
+    queryFn: () => getConditionMeasurements(conditionId as UUID),
+    enabled: Boolean(conditionId),
+  });
+}
+
+// ============================================================
+// METRICS HOOKS
+// ============================================================
+
+/**
+ * Hook para obtener todas las métricas de una condición
+ */
+export function useConditionMetrics(conditionId: UUID | null) {
+  return useQuery({
+    queryKey: ["condition-metrics", conditionId],
+    queryFn: () => getConditionMetrics(conditionId as UUID),
+    enabled: Boolean(conditionId),
+  });
+}
+
+/**
+ * Hook para crear una nueva métrica
+ */
+export function useCreateMetric() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateMetricInput) => createMetric(input),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["condition-metrics", variables.conditionId],
+      });
+    },
+  });
+}
+
+/**
+ * Hook para crear múltiples métricas
+ */
+export function useCreateMetrics() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inputs: CreateMetricInput[]) => createMetrics(inputs),
+    onSuccess: (_, variables) => {
+      // Invalidate metrics for all affected conditions
+      const conditionIds = new Set(variables.map((input) => input.conditionId));
+      conditionIds.forEach((conditionId) => {
+        queryClient.invalidateQueries({
+          queryKey: ["condition-metrics", conditionId],
+        });
+      });
+    },
+  });
+}
+
+/**
+ * Hook para actualizar una métrica
+ */
+export function useUpdateMetric(conditionId: UUID | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateMetricInput) => updateMetric(input),
+    onSuccess: () => {
+      if (conditionId) {
+        queryClient.invalidateQueries({
+          queryKey: ["condition-metrics", conditionId],
+        });
+      }
+    },
+  });
+}
+
+/**
+ * Hook para eliminar una métrica
+ */
+export function useDeleteMetric(conditionId: UUID | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ metricId }: { metricId: UUID }) => deleteMetric(metricId),
+    onSuccess: () => {
+      if (conditionId) {
+        queryClient.invalidateQueries({
+          queryKey: ["condition-metrics", conditionId],
         });
       }
     },

@@ -136,7 +136,7 @@ export default function ProcedureEditorScreen() {
   if (isEditing && editableProcedureQuery.isError) {
     return (
       <Box className="flex-1 items-center justify-center bg-background px-6">
-        <VStack space="md" className="w-full max-w-[420px] items-center">
+        <VStack space="md" className="w-full max-w-105 items-center">
           <Text className="text-center text-destructive">
             {(editableProcedureQuery.error as Error)?.message ||
               "No se pudo cargar el procedimiento para editar."}

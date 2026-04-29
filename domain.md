@@ -175,6 +175,22 @@ export interface SessionProcedure {
 // DOMAIN 3: PROGRESS & MEASUREMENT
 // ============================================================
 
+/**
+ * METRIC: A quantifiable aspect of a Condition to be tracked over time
+ *
+ * Metrics are defined when creating or modifying a Condition/Diagnostic.
+ * Each Metric represents something to be measured (e.g., pain level, range of motion, strength).
+ *
+ * A Metric has:
+ * - name: The metric's display name (e.g., "Dolor" = Pain)
+ * - unit: The unit of measurement (e.g., "puntos" = points, "grados" = degrees, "kg" = kilograms)
+ * - initialValue: The starting baseline value when the condition was first diagnosed
+ * - targetValue: The goal value to achieve by the end of treatment
+ *
+ * Example: A patient with knee pain might have:
+ *   - Metric 1: Pain (unit: puntos, initial: 8, target: 2)
+ *   - Metric 2: Range of Motion (unit: grados, initial: 45, target: 90)
+ */
 export interface Metric {
   id: UUID;
   conditionId: UUID;
@@ -187,6 +203,27 @@ export interface Metric {
   measurements?: Measurement[];
 }
 
+/**
+ * MEASUREMENT: A specific reading of a Metric at a particular Session
+ *
+ * Measurements record the actual progress toward metric targets during treatment sessions.
+ * When a physiotherapist conducts a session, they can record measurements for any metrics
+ * defined on the condition to track patient progress.
+ *
+ * A Measurement has:
+ * - value: The actual measurement taken at this session (e.g., 6 for pain level)
+ * - notes: Optional observation or context about this measurement
+ * - recordedAt: When the measurement was recorded
+ * - References both a Metric (which metric was measured) and Session (when it was measured)
+ *
+ * Progress is calculated by comparing Measurements over time:
+ *   - Initial Value → First Measurement → Later Measurements → → Target Value
+ *
+ * Example session measurements:
+ *   - Session 1 (2024-01-15): Pain = 7 (improving from initial 8)
+ *   - Session 2 (2024-01-22): Pain = 5 (continuing to improve)
+ *   - Session 3 (2024-01-29): Pain = 3 (approaching target of 2)
+ */
 export interface Measurement {
   id: UUID;
   metricId: UUID;

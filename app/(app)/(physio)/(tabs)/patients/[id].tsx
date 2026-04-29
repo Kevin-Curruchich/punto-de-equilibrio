@@ -12,10 +12,7 @@ import {
   usePhysioPatient,
   useUpdatePatient,
 } from "@/src/features/patients/hooks";
-import {
-  usePatientSessions,
-  useUpdateSessionStatus,
-} from "@/src/features/sessions/hooks";
+import { usePatientSessions } from "@/src/features/sessions/hooks";
 import { useAuthStore } from "@/src/store/auth";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
@@ -31,10 +28,6 @@ export default function PatientDetailScreen() {
   const updatePatientMutation = useUpdatePatient(physiotherapistId);
   const conditionsQuery = usePatientConditions(patientId);
   const sessionsQuery = usePatientSessions(physiotherapistId, patientId);
-  const updateSessionStatusMutation = useUpdateSessionStatus(
-    physiotherapistId,
-    patientId,
-  );
 
   if (patientQuery.isLoading) {
     return (
@@ -101,13 +94,6 @@ export default function PatientDetailScreen() {
           sessions={sessions}
           isLoading={sessionsQuery.isLoading}
           isError={sessionsQuery.isError}
-          isMutatingStatus={updateSessionStatusMutation.isPending}
-          onUpdateStatus={async (sessionId, status) => {
-            await updateSessionStatusMutation.mutateAsync({
-              sessionId,
-              status,
-            });
-          }}
         />
       ) : null,
     [
@@ -116,7 +102,6 @@ export default function PatientDetailScreen() {
       sessions,
       sessionsQuery.isLoading,
       sessionsQuery.isError,
-      updateSessionStatusMutation,
     ],
   );
 

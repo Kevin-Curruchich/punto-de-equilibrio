@@ -10,12 +10,15 @@ export default function AppLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  const target =
-    role === "physiotherapist" || role === "admin" ? "(physio)" : "(patient)";
+  const isPhysioRole = role === "physiotherapist" || role === "admin";
+  const target = isPhysioRole ? "(physio)" : "(patient)";
   const inTargetGroup = segments[1] === target;
 
   if (!inTargetGroup) {
-    return <Redirect href={`/(app)/${target}`} />;
+    const targetHref = isPhysioRole
+      ? "/(app)/(physio)/(tabs)"
+      : "/(app)/(patient)";
+    return <Redirect href={targetHref} />;
   }
 
   return (

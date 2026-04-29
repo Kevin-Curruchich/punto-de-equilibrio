@@ -199,7 +199,7 @@ export function PhotoPicker({
   ]);
 
   return (
-    <VStack className="gap-3 p-4 border border-gray-200 rounded-lg">
+    <VStack className="gap-3 p-2 border border-gray-200 rounded-lg">
       <Text className="font-semibold text-sm">Agregar foto al diagnostico</Text>
 
       <Button onPress={handleAddPhoto} disabled={loading} className="w-full">
@@ -208,7 +208,7 @@ export function PhotoPicker({
       </Button>
 
       {isDraftOpen ? (
-        <VStack className="gap-3 rounded-lg border border-border bg-background p-3">
+        <VStack className="gap-3">
           <FormControl>
             <FormControlLabel>
               <FormControlLabelText className="text-xs text-muted-foreground">

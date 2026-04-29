@@ -3,10 +3,10 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import { APP_ROUTES, APP_ROUTE_PATHNAMES } from "@/src/constants/routes";
 import type { PatientSessionListItem } from "@/src/services/firebase/sessions";
 import dayjs from "dayjs";
 import { router } from "expo-router";
-import { useState } from "react";
 import { ScrollView } from "react-native";
 
 interface PatientVisitsTabProps {
@@ -15,11 +15,6 @@ interface PatientVisitsTabProps {
   sessions: PatientSessionListItem[];
   isLoading: boolean;
   isError: boolean;
-  isMutatingStatus: boolean;
-  onUpdateStatus: (
-    sessionId: string,
-    status: "completed" | "cancelled",
-  ) => Promise<void>;
 }
 
 export function PatientVisitsTab({
@@ -28,26 +23,7 @@ export function PatientVisitsTab({
   sessions,
   isLoading,
   isError,
-  isMutatingStatus,
-  onUpdateStatus,
 }: PatientVisitsTabProps) {
-  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(
-    null,
-  );
-
-  const handleUpdateStatus = async (
-    sessionId: string,
-    status: "completed" | "cancelled",
-  ) => {
-    try {
-      setPendingSessionId(sessionId);
-      await onUpdateStatus(sessionId, status);
-    } finally {
-      setPendingSessionId(null);
-    }
-  };
-
   return (
     <ScrollView
       contentContainerStyle={{
@@ -66,7 +42,7 @@ export function PatientVisitsTab({
         <Button
           onPress={() => {
             router.push({
-              pathname: "/sessions/new",
+              pathname: APP_ROUTES.physioSessionsNew,
               params: {
                 patientId,
                 patientName,
@@ -110,7 +86,6 @@ export function PatientVisitsTab({
       ) : (
         <VStack space="md">
           {sessions.map((session) => {
-            const isScheduled = session.status === "scheduled";
             const statusLabel =
               session.status === "completed"
                 ? "Completada"
@@ -155,114 +130,17 @@ export function PatientVisitsTab({
                   </VStack>
 
                   <Button
-                    variant="outline"
                     onPress={() =>
-                      setExpandedSessionId((prev) =>
-                        prev === session.id ? null : session.id,
-                      )
+                      router.push({
+                        pathname: APP_ROUTE_PATHNAMES.physioSessionDetail,
+                        params: {
+                          id: session.id,
+                        },
+                      })
                     }
                   >
-                    <ButtonText>
-                      {expandedSessionId === session.id
-                        ? "Ocultar detalle"
-                        : "Ver detalle completo"}
-                    </ButtonText>
+                    <ButtonText>Abrir sesión completa</ButtonText>
                   </Button>
-
-                  {expandedSessionId === session.id ? (
-                    <VStack
-                      space="sm"
-                      className="rounded-md border border-border bg-background p-3"
-                    >
-                      <Text className="text-xs font-semibold uppercase text-muted-foreground">
-                        Procedimientos de sesion
-                      </Text>
-
-                      {session.sessionProcedures.length === 0 ? (
-                        <Text className="text-xs text-muted-foreground">
-                          No hay procedimientos detallados en esta sesion.
-                        </Text>
-                      ) : (
-                        <VStack space="xs">
-                          {session.sessionProcedures.map((item, index) => (
-                            <Box
-                              key={`${session.id}-procedure-${index}`}
-                              className="rounded-md border border-border bg-card p-2"
-                            >
-                              <Text className="text-xs text-foreground">
-                                Procedimiento #{index + 1}
-                              </Text>
-                              <Text className="text-xs text-muted-foreground">
-                                Sets: {item.sets ?? "-"} · Reps:{" "}
-                                {item.reps ?? "-"} · Duracion:{" "}
-                                {item.durationSec ?? "-"}s
-                              </Text>
-                              {item.instructions ? (
-                                <Text className="text-xs text-muted-foreground">
-                                  Nota: {item.instructions}
-                                </Text>
-                              ) : null}
-                            </Box>
-                          ))}
-                        </VStack>
-                      )}
-
-                      <Text className="text-xs font-semibold uppercase text-muted-foreground">
-                        Mediciones
-                      </Text>
-
-                      {session.measurements.length === 0 ? (
-                        <Text className="text-xs text-muted-foreground">
-                          No hay mediciones registradas.
-                        </Text>
-                      ) : (
-                        <VStack space="xs">
-                          {session.measurements.map((item, index) => (
-                            <Box
-                              key={`${session.id}-measurement-${index}`}
-                              className="rounded-md border border-border bg-card p-2"
-                            >
-                              <Text className="text-xs text-foreground">
-                                {item.metricName}: {item.value}
-                                {item.unit ? ` ${item.unit}` : ""}
-                              </Text>
-                              {item.notes ? (
-                                <Text className="text-xs text-muted-foreground">
-                                  Nota: {item.notes}
-                                </Text>
-                              ) : null}
-                            </Box>
-                          ))}
-                        </VStack>
-                      )}
-                    </VStack>
-                  ) : null}
-
-                  {isScheduled ? (
-                    <VStack space="sm">
-                      <Button
-                        onPress={() =>
-                          handleUpdateStatus(session.id, "completed")
-                        }
-                        disabled={
-                          isMutatingStatus && pendingSessionId === session.id
-                        }
-                      >
-                        <ButtonText>Marcar como completada</ButtonText>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onPress={() =>
-                          handleUpdateStatus(session.id, "cancelled")
-                        }
-                        disabled={
-                          isMutatingStatus && pendingSessionId === session.id
-                        }
-                      >
-                        <ButtonText>Cancelar sesion</ButtonText>
-                      </Button>
-                    </VStack>
-                  ) : null}
                 </VStack>
               </Box>
             );

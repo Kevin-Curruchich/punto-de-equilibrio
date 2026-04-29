@@ -2,6 +2,7 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import { APP_ROUTES, APP_ROUTE_PATHNAMES } from "@/src/constants/routes";
 import { DiagnosticSummaryCard } from "@/src/features/conditions/diagnostic-summary-card";
 import type { Condition, UUID } from "@/src/types/domain";
 import { router } from "expo-router";
@@ -36,8 +37,8 @@ export function PatientDiagnosticsTab({
         <Button
           onPress={() => {
             router.push({
-              pathname: "/patients/conditions/new",
-              params: { patientId },
+              pathname: APP_ROUTES.physioPatientsConditionsNew,
+              params: { id: patientId },
             });
           }}
           className="w-full"
@@ -73,7 +74,7 @@ export function PatientDiagnosticsTab({
               condition={condition}
               onOpenDetail={() => {
                 router.push({
-                  pathname: "/patient/[id]/diagnostic/[conditionId]",
+                  pathname: APP_ROUTE_PATHNAMES.physioPatientDiagnosticDetail,
                   params: {
                     id: patientId,
                     conditionId: condition.id,

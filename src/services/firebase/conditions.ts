@@ -178,3 +178,59 @@ export async function deleteConditionIfEmpty(input: {
 
   await deleteDoc(conditionRef);
 }
+
+export interface ConditionMeasurementRecord {
+  sessionId: UUID;
+  sessionDate: string;
+  metricName: string;
+  unit: string | null;
+  value: number;
+  notes: string | null;
+}
+
+/**
+ * Obtiene todos los registros de medición para una condición,
+ * agrupados por métrica y ordenados por fecha.
+ */
+export async function getConditionMeasurements(
+  conditionId: UUID,
+): Promise<ConditionMeasurementRecord[]> {
+  const q = query(
+    collection(firestore, SESSIONS_COLLECTION),
+    where("conditionId", "==", conditionId),
+  );
+  const snap = await getDocs(q);
+
+  const measurements: ConditionMeasurementRecord[] = [];
+
+  snap.docs.forEach((doc) => {
+    const session = doc.data() as {
+      id: UUID;
+      date: string;
+      measurements?: Array<{
+        metricName: string;
+        unit: string | null;
+        value: number;
+        notes: string | null;
+      }>;
+    };
+
+    if (session.measurements && session.measurements.length > 0) {
+      session.measurements.forEach((measurement) => {
+        measurements.push({
+          sessionId: session.id,
+          sessionDate: session.date,
+          metricName: measurement.metricName,
+          unit: measurement.unit,
+          value: measurement.value,
+          notes: measurement.notes,
+        });
+      });
+    }
+  });
+
+  // Sort by date ascending (oldest first)
+  measurements.sort((a, b) => a.sessionDate.localeCompare(b.sessionDate));
+
+  return measurements;
+}

@@ -8,11 +8,16 @@ import {
   usePatientConditions,
 } from "@/src/features/conditions/api";
 import { DiagnosticDetailCard } from "@/src/features/conditions/diagnostic-detail-card";
+import { MetricsProgressView } from "@/src/features/conditions/metrics-progress-view";
 import { usePatientSessions } from "@/src/features/sessions/hooks";
 import { useAuthStore } from "@/src/store/auth";
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { ScrollView, View } from "react-native";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DiagnosticDetailScreen() {
+  const safeArea = useSafeAreaInsets();
   const { id, conditionId } = useLocalSearchParams<{
     id: string;
     conditionId: string;
@@ -88,16 +93,24 @@ export default function DiagnosticDetailScreen() {
     conditionsQuery.data?.find((item) => item.id === condition.id) ?? condition;
 
   return (
-    <Box className="flex-1 bg-background">
+    <View
+      className="flex-1 bg-background"
+      style={{ paddingTop: safeArea.top, paddingBottom: safeArea.bottom }}
+    >
       <Stack.Screen options={{ title: "Detalle de diagnostico" }} />
 
-      <VStack space="md">
-        <DiagnosticDetailCard
-          condition={liveCondition}
-          userId={user.id}
-          relatedSessionsCount={relatedSessionsCount}
-        />
-      </VStack>
-    </Box>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <VStack space="md">
+          <DiagnosticDetailCard
+            condition={liveCondition}
+            userId={user.id}
+            relatedSessionsCount={relatedSessionsCount}
+          />
+          <Box className="px-4">
+            <MetricsProgressView conditionId={diagnosticId} />
+          </Box>
+        </VStack>
+      </ScrollView>
+    </View>
   );
 }
